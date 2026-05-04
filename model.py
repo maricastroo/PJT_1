@@ -1,9 +1,6 @@
 """
 ResNet-50 adaptada para classificação binária no BreaKHis.
 
-Por que funciona com 94×94:
-  A cabeça do ResNet usa GlobalAveragePooling (AdaptiveAvgPool2d(1,1)),
-  então qualquer tamanho de entrada ≥ ~32×32 é válido.
 """
 
 import torch.nn as nn
@@ -37,7 +34,7 @@ def build_resnet50(num_classes: int = 2, dropout: float = 0.5) -> nn.Module:
     )
 
     treinaveis = sum(p.numel() for p in resnet.parameters() if p.requires_grad)
-    total      = sum(p.numel() for p in resnet.parameters())
+    total = sum(p.numel() for p in resnet.parameters())
     print(f"Parâmetros treináveis: {treinaveis:,} / {total:,} ({100*treinaveis/total:.1f}%)")
 
     return resnet

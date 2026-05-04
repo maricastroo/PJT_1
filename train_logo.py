@@ -1,5 +1,5 @@
 """
-Passo 2 – Treina ResNet-50 com protocolo LOGO (Leave-One-Patient-Out).
+AQUI DEPOIS – Treina ResNet-50 com protocolo LOGO (Leave-One-Patient-Out).
 
 O LOGO garante que patches do mesmo paciente nunca aparecem
 simultaneamente no treino e no teste — evita vazamento de dados.
@@ -40,10 +40,10 @@ from model import build_resnet50
 warnings.filterwarnings("ignore")
 
 
-# ── Época ──────────────────────────────────────────────────────────────────────
+# ∘₊✧───✧₊∘ Época ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
-    """Roda um epoch de treino (optimizer != None) ou avaliação."""
+    #Roda um epoch de treino (optimizer != None) ou avaliação."""
     training = optimizer is not None
     model.train() if training else model.eval()
 
@@ -53,11 +53,11 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
     ctx = torch.enable_grad() if training else torch.no_grad()
     with ctx:
         for imgs, labels in loader:
-            imgs   = imgs.to(device, non_blocking=True)
+            imgs = imgs.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
             logits = model(imgs)
-            loss   = criterion(logits, labels)
+            loss = criterion(logits, labels)
 
             if training:
                 optimizer.zero_grad()
@@ -65,8 +65,8 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
                 optimizer.step()
 
             loss_total += loss.item() * imgs.size(0)
-            correct    += (logits.argmax(1) == labels).sum().item()
-            total      += imgs.size(0)
+            correct += (logits.argmax(1) == labels).sum().item()
+            total += imgs.size(0)
 
             probs = torch.softmax(logits, 1)[:, 1].detach().cpu().numpy()
             all_probs.extend(probs.tolist())
@@ -76,10 +76,10 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
     return loss_total / total, correct / total, auc, all_labels, all_probs
 
 
-# ── Treino de um fold LOGO ─────────────────────────────────────────────────────
+# ∘₊✧───✧₊∘ Treino de um fold LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> dict:
-    """Treina e avalia um único fold do LOGO."""
+    #Treina e avalia um único fold do LOGO."""
     tf_train = get_transforms(train=True)
     tf_test  = get_transforms(train=False)
 
@@ -101,12 +101,12 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> d
         counts[lbl] += 1
     class_w = torch.tensor(counts.sum() / (2 * counts + 1e-9), dtype=torch.float).to(device)
 
-    model     = build_resnet50().to(device)
+    model = build_resnet50().to(device)
     criterion = nn.CrossEntropyLoss(weight=class_w)
     optimizer = optim.AdamW(
         [
             {"params": model.layer4.parameters(), "lr": cfg.lr_backbone},
-            {"params": model.fc.parameters(),     "lr": cfg.lr_head},
+            {"params": model.fc.parameters(), "lr": cfg.lr_head},
         ],
         weight_decay=cfg.weight_decay,
     )
@@ -124,7 +124,7 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> d
 
         improved = val_loss < best_loss
         if improved:
-            best_loss  = val_loss
+            best_loss = val_loss
             best_state = copy.deepcopy(model.state_dict())
             no_improve = 0
             mark = " ←"
@@ -140,7 +140,7 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> d
         )
 
         if no_improve >= cfg.patience:
-            print(f"  Early stopping no fold {fold_idx} (época {epoch}).")
+            print(f"Early stopping no fold {fold_idx} (época {epoch}).")
             break
 
     # avalia com os melhores pesos
@@ -158,7 +158,7 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> d
     }
 
 
-# ── LOGO principal ─────────────────────────────────────────────────────────────
+# ∘₊✧───✧₊∘ LOGO principal ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def run_logo(cfg: Config) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -172,9 +172,9 @@ def run_logo(cfg: Config) -> None:
     print("\nVarrendo patches em disco...")
     paths, labels, pids = scan_patches(cfg.patches_dir)
     unique_pids = np.unique(pids)
-    print(f"Patches    : {len(paths):,}")
-    print(f"Pacientes  : {len(unique_pids)}")
-    print(f"Benignos   : {(labels == 0).sum():,} | Malignos: {(labels == 1).sum():,}\n")
+    print(f"Patches: {len(paths):,}")
+    print(f"Pacientes: {len(unique_pids)}")
+    print(f"Benignos: {(labels == 0).sum():,} | Malignos: {(labels == 1).sum():,}\n")
 
     logo   = LeaveOneGroupOut()
     splits = list(logo.split(paths, labels, pids))
@@ -192,7 +192,7 @@ def run_logo(cfg: Config) -> None:
         test_pid = np.unique(pids[test_idx])[0]
         print(f"\n{'='*65}")
         print(f"Fold {fold_num}/{len(splits)} — paciente de teste: {test_pid}")
-        print(f"  Treino : {len(train_idx):,} patches | Teste : {len(test_idx):,} patches")
+        print(f"Treino: {len(train_idx):,} patches | Teste: {len(test_idx):,} patches")
 
         result = train_fold(
             train_paths=paths[train_idx],
@@ -211,7 +211,7 @@ def run_logo(cfg: Config) -> None:
             f"auc={result['auc']:.4f} | f1={result['f1']:.4f}"
         )
 
-    # ── Métricas agregadas ─────────────────────────────────────────────────────
+    # ∘₊✧──────✧₊∘ Métricas agregadas ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     accs = [r["acc"] for r in all_results]
     aucs = [r["auc"] for r in all_results]
     f1s  = [r["f1"]  for r in all_results]
@@ -221,13 +221,13 @@ def run_logo(cfg: Config) -> None:
 
     print(f"\n{'='*65}")
     print("RESULTADO FINAL — ResNet-50 | BreaKHis | Protocolo LOGO")
-    print(f"  Acurácia : {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-    print(f"  AUC-ROC  : {np.mean(aucs):.4f} ± {np.std(aucs):.4f}")
-    print(f"  F1-score : {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
+    print(f"Acurácia: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
+    print(f"AUC-ROC: {np.mean(aucs):.4f} ± {np.std(aucs):.4f}")
+    print(f"F1-score: {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
     print()
     print(classification_report(all_y_true, all_y_pred, target_names=["Benigno", "Maligno"]))
 
-    # ── Salva resultados ───────────────────────────────────────────────────────
+    # ∘₊✧──────✧₊∘ Salva resultados ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     summary = {
         "acc_mean": float(np.mean(accs)), "acc_std": float(np.std(accs)),
         "auc_mean": float(np.mean(aucs)), "auc_std": float(np.std(aucs)),
@@ -241,7 +241,7 @@ def run_logo(cfg: Config) -> None:
     print(f"\nResultados salvos em: {out_dir}")
 
 
-# ── Gráficos ───────────────────────────────────────────────────────────────────
+# ∘₊✧──────✧₊∘ Gráficos ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def _plot_results(accs: list, aucs: list, cm: np.ndarray, out_dir: Path) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
@@ -273,7 +273,7 @@ def _plot_results(accs: list, aucs: list, cm: np.ndarray, out_dir: Path) -> None
     plt.show()
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# ∘₊✧──────✧₊∘ Main ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LOGO Training – BreaKHis ResNet-50")
@@ -288,11 +288,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfg = Config()
-    if args.patches_dir: cfg.patches_dir = args.patches_dir
-    if args.output_dir:  cfg.output_dir  = args.output_dir
+    if args.patches_dir:cfg.patches_dir = args.patches_dir
+    if args.output_dir:cfg.output_dir  = args.output_dir
     if args.max_folds is not None: cfg.max_folds  = args.max_folds
-    if args.epochs:      cfg.num_epochs  = args.epochs
-    if args.batch_size:  cfg.batch_size  = args.batch_size
-    if args.workers is not None: cfg.num_workers = args.workers
+    if args.epochs:cfg.num_epochs  = args.epochs
+    if args.batch_size:cfg.batch_size  = args.batch_size
+    if args.workers is not None:cfg.num_workers = args.workers
 
     run_logo(cfg)

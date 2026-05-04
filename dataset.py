@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 
-# ── ImageNet stats (patches histológicos herdam esses valores) ─────────────────
+# ∘₊✧────✧₊∘ ImageNet stats (patches histológicos herdam esses valores) ∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 _MEAN = [0.485, 0.456, 0.406]
 _STD  = [0.229, 0.224, 0.225]
 
@@ -32,7 +32,7 @@ def get_transforms(train: bool) -> transforms.Compose:
     ])
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# ∘₊✧────✧₊∘ Helpers ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def patient_id_from_stem(stem: str) -> str:
     """
@@ -57,15 +57,15 @@ def label_from_path(path: Path) -> int:
     return 1
 
 
-# ── Dataset ────────────────────────────────────────────────────────────────────
+# ∘₊✧────✧₊∘ Dataset ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 class BreaKHisDataset(Dataset):
     """Carrega patches salvos em disco.
 
     Params
     ------
-    paths     : lista de Path com os arquivos de patch
-    transform : torchvision transform (use get_transforms)
+    paths: lista de Path com os arquivos de patch
+    transform: torchvision transform (use get_transforms)
     """
 
     def __init__(self, paths: list, transform=None):
@@ -83,13 +83,13 @@ class BreaKHisDataset(Dataset):
         return img, label
 
 
-# ── Varredura de patches com IDs de paciente ───────────────────────────────────
+# ∘₊✧────✧₊∘ Varredura de patches com IDs de paciente ∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def scan_patches(patches_dir: str) -> tuple:
     """
     Lê todos os patches salvos em disco e retorna:
-        paths      : np.ndarray de Path
-        labels     : np.ndarray de int (0=benigno, 1=maligno)
+        paths: np.ndarray de Path
+        labels: np.ndarray de int (0=benigno, 1=maligno)
         patient_ids: np.ndarray de str (ID único por paciente)
     """
     patches_path = Path(patches_dir)

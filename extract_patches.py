@@ -1,10 +1,10 @@
 """
 Passo 1 – Extração de patches com janela deslizante.
-Execute UMA VEZ antes de treinar.
+Executar UMA VEZ antes de treinar.
 
 Uso:
     python extract_patches.py
-    python extract_patches.py --patch-size 94 --stride 47
+    python extract_patches.py --patch-size 94 --stride 47 (excemplo)
 """
 
 import argparse
@@ -31,10 +31,10 @@ def extrair_patches(cfg: Config) -> None:
     if not imagens:
         raise RuntimeError(f"Nenhuma imagem encontrada em {dataset_path}")
 
-    print(f"Imagens encontradas : {len(imagens)}")
-    print(f"Tamanho do patch    : {cfg.patch_size}×{cfg.patch_size}")
-    print(f"Stride              : {cfg.stride}")
-    print(f"Destino             : {patches_path}\n")
+    print(f"Imagens encontradas: {len(imagens)}")
+    print(f"Tamanho do patch: {cfg.patch_size}×{cfg.patch_size}")
+    print(f"Stride: {cfg.stride}")
+    print(f"Destino: {patches_path}\n")
 
     total_patches = 0
     ignoradas = 0
@@ -63,9 +63,9 @@ def extrair_patches(cfg: Config) -> None:
                 k += 1
         total_patches += k
 
-    print(f"\nPatches extraídos : {total_patches:,}")
+    print(f"\nPatches extraídos: {total_patches:,}")
     if ignoradas:
-        print(f"Imagens ignoradas : {ignoradas} (não lidas ou menores que o patch)")
+        print(f"Imagens ignoradas:{ignoradas}(não lidas ou menores que o patch)")
     print(f"Concluído → {patches_path}")
 
 
@@ -73,14 +73,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extração de patches – BreaKHis")
     parser.add_argument("--dataset-dir", default=None, help="Caminho do dataset original")
     parser.add_argument("--patches-dir", default=None, help="Onde salvar os patches")
-    parser.add_argument("--patch-size",  type=int, default=None)
-    parser.add_argument("--stride",      type=int, default=None)
+    parser.add_argument("--patch-size", type=int, default=None)
+    parser.add_argument("--stride", type=int, default=None)
     args = parser.parse_args()
 
     cfg = Config()
     if args.dataset_dir: cfg.dataset_dir = args.dataset_dir
     if args.patches_dir: cfg.patches_dir = args.patches_dir
-    if args.patch_size:  cfg.patch_size  = args.patch_size
-    if args.stride:      cfg.stride      = args.stride
+    if args.patch_size: cfg.patch_size  = args.patch_size
+    if args.stride: cfg.stride = args.stride
 
     extrair_patches(cfg)
