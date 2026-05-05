@@ -1,10 +1,10 @@
 """
-Passo 1 – Extração de patches com janela deslizante.
+AQUI PRIMEIRO – Extração de patches com janela deslizante.
 Executar UMA VEZ antes de treinar.
 
 Uso:
     python extract_patches.py
-    python extract_patches.py --patch-size 94 --stride 47 (excemplo)
+    python extract_patches.py 
 """
 
 import argparse

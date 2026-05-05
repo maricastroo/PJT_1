@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchvision import models
 
 
-def build_resnet50(num_classes: int = 2, dropout: float = 0.5) -> nn.Module:
+def build_resnet50(num_classes: int = 2, dropout: float = 0.2) -> nn.Module:
     """
     ResNet-50 pré-treinada (ImageNet V2).
     Estratégia de fine-tuning:
@@ -21,16 +21,18 @@ def build_resnet50(num_classes: int = 2, dropout: float = 0.5) -> nn.Module:
     for p in resnet.parameters():
         p.requires_grad = False
 
+
     # descongela apenas layer4 para fine-tuning suave
     for p in resnet.layer4.parameters():
         p.requires_grad = True
 
     # substitui cabeça classificadora
     resnet.fc = nn.Sequential(
-        nn.Linear(2048, 512),
+        nn.Dropout(dropout),
+        nn.Linear(512, 256),
         nn.ReLU(inplace=True),
         nn.Dropout(dropout),
-        nn.Linear(512, num_classes),
+        nn.Linear(256, num_classes),
     )
 
     treinaveis = sum(p.numel() for p in resnet.parameters() if p.requires_grad)

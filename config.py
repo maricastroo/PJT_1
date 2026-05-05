@@ -13,12 +13,12 @@ class Config:
     stride:     int = 47   # sobreposição de 50 %
 
     # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    num_epochs:   int   = 30
-    batch_size:   int   = 64
-    lr_head:      float = 5e-3   # cabeça classificadora (camadas novas)
+    num_epochs: int = 30
+    batch_size: int = 64
+    lr_head: float = 5e-3 # cabeça classificadora (camadas novas)
     lr_backbone:  float = 1e-4   # layer4 do ResNet (ajuste fino)
     weight_decay: float = 1e-4
-    patience:     int   = 7      # early stopping
+    patience: int   = 7      # early stopping
 
     # Windows: num_workers > 0 pode causar problemas; use 0 se travar
     num_workers: int = 2

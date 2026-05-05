@@ -79,7 +79,7 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
 # ∘₊✧───✧₊∘ Treino de um fold LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> dict:
-    #Treina e avalia um único fold do LOGO."""
+    #Treina e avalia um único fold do LOGO
     tf_train = get_transforms(train=True)
     tf_test  = get_transforms(train=False)
 
