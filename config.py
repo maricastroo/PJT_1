@@ -14,17 +14,16 @@ class Config:
     magnification: str = "200X"  # filtro de ampliação (40X | 100X | 200X | 400X | "" = todas)
 
     # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    num_epochs: int = 30
+    num_epochs: int = 10  # épocas fixas (sem early stopping)
     batch_size: int = 128
     lr_head: float = 5e-3 # cabeça classificadora (camadas novas)
     lr_backbone:  float = 1e-4   # layer4 do ResNet (ajuste fino)
     weight_decay: float = 1e-4
-    patience: int = 7 # early stopping
-
+   
     # Windows: num_workers > 0 pode causar problemas; use 0 se travar
     num_workers: int = 2
 
     # ∘₊✧──✧₊∘ Protocolo LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     # 0 = todos os pacientes (LOGO completo)
     # N > 0 = apenas N folds (modo rápido para testes)
-    max_folds: int = 0
+    max_folds: int = 10
