@@ -31,7 +31,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import LeaveOneGroupOut
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from config import Config
 from dataset import BreaKHisDataset, get_transforms, scan_patches
@@ -43,7 +43,7 @@ warnings.filterwarnings("ignore")
 # ∘₊✧───✧₊∘ Época ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
-    #Roda um epoch de treino (optimizer != None) ou avaliação."""
+    """Roda um epoch de treino (optimizer != None) ou avaliação."""
     training = optimizer is not None
     model.train() if training else model.eval()
 
@@ -79,30 +79,39 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu"):
 # ∘₊✧───✧₊∘ Treino de um fold LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
 
 def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> dict:
-    #Treina e avalia um único fold do LOGO
+    """Treina e avalia um único fold do LOGO."""
     tf_train = get_transforms(train=True)
     tf_test  = get_transforms(train=False)
 
     train_ds = BreaKHisDataset(train_paths.tolist(), transform=tf_train)
     test_ds  = BreaKHisDataset(test_paths.tolist(),  transform=tf_test)
 
-    train_loader = DataLoader(
-        train_ds, batch_size=cfg.batch_size, shuffle=True,
-        num_workers=cfg.num_workers, pin_memory=(device.type == "cuda"),
-    )
     test_loader = DataLoader(
         test_ds, batch_size=cfg.batch_size, shuffle=False,
         num_workers=cfg.num_workers, pin_memory=(device.type == "cuda"),
     )
 
-    # peso de classe para compensar desbalanceamento
+    # ∘₊✧──✧₊ Balanceamento de classes ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     counts = np.zeros(2)
     for _, lbl in train_ds.samples:
         counts[lbl] += 1
-    class_w = torch.tensor(counts.sum() / (2 * counts + 1e-9), dtype=torch.float).to(device)
+    print(f"  Treino → Benignos: {int(counts[0]):,} | Malignos: {int(counts[1]):,}")
+
+    # peso por amostra para o WeightedRandomSampler (batches balanceados 50/50)
+    class_w = counts.sum() / (2 * counts + 1e-9)
+    sample_w = [class_w[lbl] for _, lbl in train_ds.samples]
+    sampler = WeightedRandomSampler(sample_w, num_samples=len(sample_w), replacement=True)
+
+    # peso de classe para a loss (dupla proteção contra desbalanceamento)
+    class_w_tensor = torch.tensor(class_w, dtype=torch.float).to(device)
+
+    train_loader = DataLoader(
+        train_ds, batch_size=cfg.batch_size, sampler=sampler, # sem shuffle — sampler já embaralha
+        num_workers=cfg.num_workers, pin_memory=(device.type == "cuda"),
+    )
 
     model = build_resnet50().to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_w)
+    criterion = nn.CrossEntropyLoss(weight=class_w_tensor)
     optimizer = optim.AdamW(
         [
             {"params": model.layer4.parameters(), "lr": cfg.lr_backbone},
@@ -148,11 +157,19 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int) -> d
     _, _, _, y_true, y_prob = run_epoch(model, test_loader, criterion, device=device)
     y_pred = [1 if p >= 0.5 else 0 for p in y_prob]
 
+    classes_presentes = len(set(y_true))
+    auc = roc_auc_score(y_true, y_prob) if classes_presentes > 1 else None
+    f1  = f1_score(y_true, y_pred, average="macro", zero_division=0)
+
+    if classes_presentes == 1:
+        classe = "Benigno" if y_true[0] == 0 else "Maligno"
+        print(f"  Aviso: paciente de teste com apenas uma classe ({classe}) — AUC indefinido.")
+
     return {
         "acc": accuracy_score(y_true, y_pred),
-        "auc": roc_auc_score(y_true, y_prob) if len(set(y_true)) > 1 else 0.0,
-        "f1":  f1_score(y_true, y_pred, zero_division=0),
-        "cm":  confusion_matrix(y_true, y_pred).tolist(),
+        "auc": auc,   # None quando teste tem só uma classe
+        "f1": f1,    # macro: média das duas classes
+        "cm": confusion_matrix(y_true, y_pred).tolist(),
         "y_true": y_true,
         "y_prob": y_prob,
     }
@@ -192,7 +209,16 @@ def run_logo(cfg: Config) -> None:
         test_pid = np.unique(pids[test_idx])[0]
         print(f"\n{'='*65}")
         print(f"Fold {fold_num}/{len(splits)} — paciente de teste: {test_pid}")
-        print(f"Treino: {len(train_idx):,} patches | Teste: {len(test_idx):,} patches")
+        print(f"  Treino: {len(train_idx):,} patches | Teste: {len(test_idx):,} patches")
+
+        # ── Verificação LOGO: garante zero vazamento entre pacientes ──────────
+        train_pids = set(pids[train_idx])
+        test_pids  = set(pids[test_idx])
+        overlap    = train_pids & test_pids
+        if overlap:
+            print(f"  AVISO: vazamento detectado! Pacientes em ambos os sets: {overlap}")
+        else:
+            print(f"  LOGO OK: nenhum paciente compartilhado entre treino e teste")
 
         result = train_fold(
             train_paths=paths[train_idx],
@@ -206,24 +232,24 @@ def run_logo(cfg: Config) -> None:
         all_y_true.extend(result["y_true"])
         all_y_prob.extend(result["y_prob"])
 
-        print(
-            f"  → acc={result['acc']:.4f} | "
-            f"auc={result['auc']:.4f} | f1={result['f1']:.4f}"
-        )
+        auc_str = f"{result['auc']:.4f}" if result['auc'] is not None else "N/A"
+        print(f"  → acc={result['acc']:.4f} | auc={auc_str} | f1={result['f1']:.4f}")
 
     # ∘₊✧──────✧₊∘ Métricas agregadas ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     accs = [r["acc"] for r in all_results]
-    aucs = [r["auc"] for r in all_results]
+    aucs = [r["auc"] for r in all_results if r["auc"] is not None]  # ignora folds de 1 classe
     f1s  = [r["f1"]  for r in all_results]
+
+    folds_sem_auc = sum(1 for r in all_results if r["auc"] is None)
 
     all_y_pred = [1 if p >= 0.5 else 0 for p in all_y_prob]
     cm_total   = confusion_matrix(all_y_true, all_y_pred)
 
     print(f"\n{'='*65}")
     print("RESULTADO FINAL — ResNet-50 | BreaKHis | Protocolo LOGO")
-    print(f"Acurácia: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-    print(f"AUC-ROC: {np.mean(aucs):.4f} ± {np.std(aucs):.4f}")
-    print(f"F1-score: {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
+    print(f"  Acurácia : {np.mean(accs):.4f} ± {np.std(accs):.4f}")
+    print(f"  AUC-ROC  : {np.mean(aucs):.4f} ± {np.std(aucs):.4f}  ({folds_sem_auc} folds ignorados — paciente com 1 classe)")
+    print(f"  F1-macro : {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
     print()
     print(classification_report(all_y_true, all_y_pred, target_names=["Benigno", "Maligno"]))
 
@@ -232,6 +258,7 @@ def run_logo(cfg: Config) -> None:
         "acc_mean": float(np.mean(accs)), "acc_std": float(np.std(accs)),
         "auc_mean": float(np.mean(aucs)), "auc_std": float(np.std(aucs)),
         "f1_mean":  float(np.mean(f1s)),  "f1_std":  float(np.std(f1s)),
+        "folds_sem_auc": folds_sem_auc,
         "folds": all_results,
     }
     with open(out_dir / "logo_results.json", "w", encoding="utf-8") as f:
@@ -254,10 +281,12 @@ def _plot_results(accs: list, aucs: list, cm: np.ndarray, out_dir: Path) -> None
     axes[0].set_xlabel("Fold (paciente)"); axes[0].set_ylabel("Acurácia")
     axes[0].set_ylim(0, 1); axes[0].legend(); axes[0].grid(alpha=0.3)
 
-    axes[1].bar(folds, aucs, color="darkorange", alpha=0.75)
+    # aucs pode ter menos elementos que accs (folds com 1 classe ignorados)
+    folds_auc = range(1, len(aucs) + 1)
+    axes[1].bar(folds_auc, aucs, color="darkorange", alpha=0.75)
     axes[1].axhline(np.mean(aucs), color="red", ls="--",
                     label=f"Média = {np.mean(aucs):.3f}")
-    axes[1].set_title("AUC-ROC por Fold (LOGO)")
+    axes[1].set_title("AUC-ROC por Fold (LOGO, folds válidos)")
     axes[1].set_xlabel("Fold (paciente)"); axes[1].set_ylabel("AUC-ROC")
     axes[1].set_ylim(0, 1); axes[1].legend(); axes[1].grid(alpha=0.3)
 

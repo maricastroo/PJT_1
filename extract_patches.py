@@ -22,16 +22,24 @@ def extrair_patches(cfg: Config) -> None:
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset não encontrado: {dataset_path}")
 
-    imagens = (
+    todas = (
         list(dataset_path.rglob("*.png"))
         + list(dataset_path.rglob("*.jpg"))
         + list(dataset_path.rglob("*.tif"))
     )
 
-    if not imagens:
-        raise RuntimeError(f"Nenhuma imagem encontrada em {dataset_path}")
+    # filtra por ampliação se configurado
+    if cfg.magnification:
+        imagens = [p for p in todas if cfg.magnification in p.parts]
+        print(f"Filtro de ampliação: {cfg.magnification}")
+        print(f"Imagens antes: {len(todas)}")
+        print(f"Imagens após filtro: {len(imagens)}")
+    else:
+        imagens = todas
+        print(f"Imagens encontradas : {len(imagens)} (todas as ampliações)")
 
-    print(f"Imagens encontradas: {len(imagens)}")
+    if not imagens:
+        raise RuntimeError(f"Nenhuma imagem encontrada em {dataset_path} com ampliação {cfg.magnification}")
     print(f"Tamanho do patch: {cfg.patch_size}×{cfg.patch_size}")
     print(f"Stride: {cfg.stride}")
     print(f"Destino: {patches_path}\n")

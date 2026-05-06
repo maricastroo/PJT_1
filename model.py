@@ -21,13 +21,13 @@ def build_resnet50(num_classes: int = 2, dropout: float = 0.2) -> nn.Module:
     for p in resnet.parameters():
         p.requires_grad = False
 
-
     # descongela apenas layer4 para fine-tuning suave
     for p in resnet.layer4.parameters():
         p.requires_grad = True
 
-    # substitui cabeça classificadora
     resnet.fc = nn.Sequential(
+        nn.Linear(2048, 512),   # ResNet-50 sempre sai com 2048 features
+        nn.ReLU(inplace=True),
         nn.Dropout(dropout),
         nn.Linear(512, 256),
         nn.ReLU(inplace=True),

@@ -9,16 +9,17 @@ class Config:
     output_dir:  str = r"C:\Users\maria\Documents\PJT-1\resultados"
 
     # ∘₊✧──✧₊∘ Janela deslizante ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    patch_size: int = 94   # sugestão do orientador 
-    stride:     int = 47   # sobreposição de 50 %
+    patch_size: int = 96    # sugestão do orientador
+    stride: int = 47    # sobreposição de 50 %
+    magnification: str = "200X"  # filtro de ampliação (40X | 100X | 200X | 400X | "" = todas)
 
     # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     num_epochs: int = 30
-    batch_size: int = 64
+    batch_size: int = 128
     lr_head: float = 5e-3 # cabeça classificadora (camadas novas)
     lr_backbone:  float = 1e-4   # layer4 do ResNet (ajuste fino)
     weight_decay: float = 1e-4
-    patience: int   = 7      # early stopping
+    patience: int = 7 # early stopping
 
     # Windows: num_workers > 0 pode causar problemas; use 0 se travar
     num_workers: int = 2
