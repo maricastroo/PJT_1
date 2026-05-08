@@ -26,4 +26,4 @@ class Config:
     # ∘₊✧──✧₊∘ Protocolo LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
     # 0 = todos os pacientes (LOGO completo)
     # N > 0 = apenas N folds (modo rápido para testes)
-    max_folds: int = 10
+    max_folds: int = 20

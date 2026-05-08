@@ -26,8 +26,7 @@ def build_resnet50(num_classes: int = 2, dropout: float = 0.2) -> nn.Module:
         p.requires_grad = True
 
     resnet.fc = nn.Sequential(
-        nn.Linear(2048, 512),   # ResNet-50 sempre sai com 2048 features
-        nn.ReLU(inplace=True),
+        nn.Linear(2048, 512), 
         nn.Dropout(dropout),
         nn.Linear(512, 256),
         nn.ReLU(inplace=True),

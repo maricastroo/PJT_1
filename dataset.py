@@ -77,7 +77,11 @@ class BreaKHisDataset(Dataset):
 
     def __getitem__(self, idx: int):
         path, label = self.samples[idx]
-        img = Image.open(path).convert("RGB")
+        try:
+            img = Image.open(path).convert("RGB")
+        except Exception:
+            # patch corrompido — substitui por imagem preta pra não travar o treino
+            img = Image.new("RGB", (96, 96), 0)
         if self.transform:
             img = self.transform(img)
         return img, label
