@@ -119,6 +119,6 @@ def plotar(model_name: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plota resultados LOGO — BreaKHis")
-    parser.add_argument("--model", choices=["resnet", "efficientnet", "vgg"], required=True)
+    parser.add_argument("--model", choices=["resnet", "efficientnet", "vgg", "ensemble"], required=True)
     args = parser.parse_args()
     plotar(args.model)
