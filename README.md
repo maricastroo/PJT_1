@@ -23,7 +23,7 @@ PJT-1/
 ├── ensemble.py            # fusão das CNN com Late Fusion / Soft Voting
 ├── extract_patches.py     # extração de patches com janela deslizante
 ├── model_resnet.py        # ResNet-50 com fine-tuning
-├── model_efficientnet.py  # EfficientNet-B0 com fine-tuning
+├── model_efficientnet.py  # EfficientNet-B3 com fine-tuning
 ├── model_vgg.py           # VGG-16 com fine-tuning
 ├── train_logo.py          # treinamento com protocolo LOGO
 ├── plot_resultados.py     # geração de gráficos a partir dos resultados
@@ -86,7 +86,7 @@ Argumentos opcionais (exceto 'model'):
 | Modelo | Camadas descongeladas | Cabeça classificadora |
 |---|---|---|
 | ResNet-50 | `layer4` | Linear(2048→512→256→2) |
-| EfficientNet-B0 | `features[6]` e `features[7]` | Dropout + Linear(1280→2) |
+| EfficientNet-B3 | `features[6]` e `features[7]` | Dropout + Linear(1536→2) |
 | VGG-16 | `features[24:]` | Linear(25088→4096→512→2) |
 
 **Outros detalhes:**
@@ -122,12 +122,10 @@ Utiliza a saída da camada Softmax de cada rede para fazer a média das probabil
 python plot_resultados.py --model resnet
 python plot_resultados.py --model efficientnet
 python plot_resultados.py --model vgg
-python plot_resultados.py --model vgg
 python plot_resultados.py --model ensemble
 ```
 
-Gera 3 gráficos separado
-s para cada modelo:
+Gera 3 gráficos separados para cada modelo:
 
 - **grafico_acuracia.png** — acurácia por fold com linha da média
 - **grafico_roc.png** — curva ROC agregada (todos os folds combinados)
