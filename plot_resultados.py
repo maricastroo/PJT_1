@@ -78,23 +78,26 @@ def plotar(model_name: str) -> None:
     plt.show()
     print(f"Salvo: {caminho}")
 
-    # gráfico 2: curva ROC agregada 
-    fig, ax = plt.subplots(figsize=(7, 7))
-    fpr, tpr, _ = roc_curve(all_y_true, all_y_prob)
-    ax.plot(fpr, tpr, color="darkorange", lw=2, label=f"AUC = {auc_str}")
-    ax.plot([0, 1], [0, 1], color="gray", ls="--", label="Aleatório")
-    ax.set_title(f"Curva ROC Agregada\n{titulo}")
-    ax.set_xlabel("Taxa de Falsos Positivos")
-    ax.set_ylabel("Taxa de Verdadeiros Positivos")
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.legend()
-    ax.grid(alpha=0.3)
-    plt.tight_layout()
-    caminho = out_dir / "grafico_roc.png"
-    plt.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.show()
-    print(f"Salvo: {caminho}")
+    # gráfico 2: curva ROC agregada
+    if auc_global is not None:
+        fig, ax = plt.subplots(figsize=(7, 7))
+        fpr, tpr, _ = roc_curve(all_y_true, all_y_prob)
+        ax.plot(fpr, tpr, color="darkorange", lw=2, label=f"AUC = {auc_str}")
+        ax.plot([0, 1], [0, 1], color="gray", ls="--", label="Aleatório")
+        ax.set_title(f"Curva ROC Agregada\n{titulo}")
+        ax.set_xlabel("Taxa de Falsos Positivos")
+        ax.set_ylabel("Taxa de Verdadeiros Positivos")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.legend()
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        caminho = out_dir / "grafico_roc.png"
+        plt.savefig(caminho, dpi=150, bbox_inches="tight")
+        plt.show()
+        print(f"Salvo: {caminho}")
+    else:
+        print("Curva ROC não gerada: todos os folds tinham apenas uma classe.")
 
     # gráfico 3: matriz de confusão 
     fig, ax = plt.subplots(figsize=(6, 5))
