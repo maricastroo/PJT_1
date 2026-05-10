@@ -20,6 +20,7 @@ Classificação binária de imagens histopatológicas (benigno vs. maligno) usan
 PJT-1/
 ├── config.py              # configurações centrais (caminhos, hiperparâmetros)
 ├── dataset.py             # dataset PyTorch + extração de ID de paciente
+├── ensemble.py            # fusão das CNN com Late Fusion / Soft Voting
 ├── extract_patches.py     # extração de patches com janela deslizante
 ├── model_resnet.py        # ResNet-50 com fine-tuning
 ├── model_efficientnet.py  # EfficientNet-B0 com fine-tuning
@@ -42,7 +43,7 @@ PJT-1/
 
 ### 1. Extração de patches
 
-Executa **uma única vez** antes de treinar. Percorre todas as imagens do dataset e extrai patches com janela deslizante.
+Executar **uma única vez** antes de treinar. Percorre todas as imagens do dataset e extrai patches com janela deslizante.
 
 ```bash
 python extract_patches.py
@@ -63,7 +64,7 @@ python train_logo.py --model efficientnet
 python train_logo.py --model vgg
 ```
 
-Argumentos opcionais:
+Argumentos opcionais (exceto 'model'):
 
 | Argumento | Descrição | Padrão |
 |---|---|---|
@@ -97,15 +98,36 @@ Argumentos opcionais:
 
 ---
 
-### 3. Plotagem dos resultados
+### 3. Fusão das redes
+
+Executar após ter os JSONs da ResNet50, VGG16 e EfficientNetB3.
+
+```bash
+python ensemble.py
+
+# Opcional para especificar pasta de output customizada
+python ensemble.py --output-dir "caminho/para/outputs"
+```
+
+Faz a fusão a nível de decisão dos 3 modelos de redes neurais após o treinamento individual de cada uma (Late Fusion).
+Utiliza a saída da camada Softmax de cada rede para fazer a média das probabilidades (Soft Voting) para cada patch analisado.
+
+
+
+---
+
+### 4. Plotagem dos resultados
 
 ```bash
 python plot_resultados.py --model resnet
 python plot_resultados.py --model efficientnet
 python plot_resultados.py --model vgg
+python plot_resultados.py --model vgg
+python plot_resultados.py --model ensemble
 ```
 
-Gera 3 gráficos separados para cada modelo:
+Gera 3 gráficos separado
+s para cada modelo:
 
 - **grafico_acuracia.png** — acurácia por fold com linha da média
 - **grafico_roc.png** — curva ROC agregada (todos os folds combinados)
