@@ -8,27 +8,39 @@ from torchvision import transforms
 _MEAN = [0.485, 0.456, 0.406]
 _STD  = [0.229, 0.224, 0.225]
 
-def get_transforms(train: bool) -> transforms.Compose:
-    base_transforms = [
-        transforms.Resize((300, 300), interpolation=transforms.InterpolationMode.BICUBIC),
-        transforms.ToTensor(),
-        transforms.Normalize(_MEAN, _STD),
-    ]
+# Tamanhos oficiais de cada modelo 
+_MODEL_SIZES = {
+    "resnet":       (232, 224),
+    "vgg":          (256, 224),
+    "efficientnet": (320, 300),
+}
+
+def get_transforms(train: bool, model_name: str) -> transforms.Compose:
+    resize_size, crop_size = _MODEL_SIZES[model_name]
+
     if train:
         return transforms.Compose([
+            transforms.Resize(resize_size, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.RandomCrop(crop_size),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(15),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
-            *base_transforms
+            transforms.ToTensor(),
+            transforms.Normalize(_MEAN, _STD),
         ])
-    return transforms.Compose(base_transforms)
+    return transforms.Compose([
+        transforms.Resize(resize_size, interpolation=transforms.InterpolationMode.BICUBIC),
+        transforms.CenterCrop(crop_size),
+        transforms.ToTensor(),
+        transforms.Normalize(_MEAN, _STD),
+    ])
 
 def label_from_path(path: Path) -> int:
     parts_lower = {p.lower() for p in path.parts}
     return 0 if "benign" in parts_lower or "benigno" in parts_lower else 1
 
-# ∘₊✧──✧₊∘ LOGO: extração do ID do paciente ∘₊✧──────✧₊∘
+# LOGO: extração do ID do paciente
 def patient_id_from_path(path: Path) -> str:
     """
     Extrai o ID do paciente a partir do nome do arquivo BreaKHis.
@@ -38,7 +50,7 @@ def patient_id_from_path(path: Path) -> str:
     Fallback: usa o diretório pai como identificador, o que funciona
     para qualquer estrutura de pastas que agrupe imagens por paciente.
     """
-    stem = path.stem  
+    stem = path.stem
     # Padrão BreaKHis: SOB_{B|M}_{subtipo}-{patient_id}_{mag}-{n}
     match = re.match(r"SOB_[BM]_[^-]+-([^_]+)_", stem, re.IGNORECASE)
     if match:

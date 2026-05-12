@@ -23,11 +23,8 @@ def logo_split(paths: np.ndarray, labels: np.ndarray, patient_ids: np.ndarray,
     Divide patches em treino / validação / teste garantindo que todos os
     patches de um mesmo paciente estejam em apenas um dos três conjuntos.
 
-    Proporção alvo  ->  70 % treino | 15 % validação | 15 % teste  (em patches).
+    Proporção alvo  ->  70 % treino | 15 % validação | 15 % teste (em patches).
     A divisão é feita em nível de paciente e depois expandida para patches.
-
-    Retorna máscaras booleanas (train_mask, val_mask, test_mask) sobre o
-    array original de paths/labels.
     """
     rng = np.random.default_rng(seed)
 
@@ -35,8 +32,8 @@ def logo_split(paths: np.ndarray, labels: np.ndarray, patient_ids: np.ndarray,
     rng.shuffle(unique_patients)
 
     n = len(unique_patients)
-    n_test = max(1, round(n * test_ratio))
-    n_val  = max(1, round(n * val_ratio))
+    n_test  = max(1, round(n * test_ratio))
+    n_val   = max(1, round(n * val_ratio))
     # O restante vai para treino
     n_train = n - n_test - n_val
 
@@ -150,9 +147,10 @@ def run_kfold(cfg: Config, model_name: str):
               f"Teste: {split_info['n_patients_test']}")
         print(f"Patches   → Treino: {len(X_train)} | "
               f"Val: {len(X_val)} | Teste: {len(X_test)}")
-
-        tf_train = get_transforms(train=True)
-        tf_test  = get_transforms(train=False)
+        
+        # Transforms específicos por modelo
+        tf_train = get_transforms(train=True,  model_name=model_name)
+        tf_test  = get_transforms(train=False, model_name=model_name)
 
         train_loader = DataLoader(
             BreaKHisDataset(X_train, transform=tf_train),
@@ -172,7 +170,7 @@ def run_kfold(cfg: Config, model_name: str):
             counts.sum() / (2.0 * counts + 1e-9), dtype=torch.float
         ).to(device)
 
-        if   model_name == "resnet":      model = build_resnet50().to(device)
+        if   model_name == "resnet":       model = build_resnet50().to(device)
         elif model_name == "efficientnet": model = build_efficientnet_b3().to(device)
         elif model_name == "vgg":          model = build_vgg16().to(device)
 
