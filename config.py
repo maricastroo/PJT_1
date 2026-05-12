@@ -1,29 +1,26 @@
 from dataclasses import dataclass
 
-
 @dataclass
 class Config:
-    # ∘₊✧──✧₊∘ Caminhos ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
+    # ∘₊✧──✧₊∘ Caminhos ∘₊✧──────✧₊∘
     dataset_dir: str = r"C:\Users\maria\Documents\PJT-1\BreaKHis_v1\histology_slides\breast"
     patches_dir: str = r"C:\Users\maria\Documents\PJT-1\BreaKHis_Patches"
     output_dir:  str = r"C:\Users\maria\Documents\PJT-1\resultados"
 
-    # ∘₊✧──✧₊∘ Janela deslizante ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    patch_size: int = 96    # sugestão do orientador
-    stride: int = 47    # sobreposição de 50 %
-    magnification: str = "200X"  # filtro de ampliação (40X | 100X | 200X | 400X | "" = todas)
+    # ∘₊✧──✧₊∘ Janela deslizante ∘₊✧──────✧₊∘
+    patch_size: int = 96
+    stride: int = 47
+    magnification: str = "200X"
 
-    # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    num_epochs: int = 10  # épocas fixas (sem early stopping)
-    batch_size: int = 128
-    lr_head: float = 5e-3 # cabeça classificadora (camadas novas)
-    lr_backbone:  float = 1e-4   # layer4 do ResNet (ajuste fino)
+    # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘
+    num_epochs: int = 50
+    batch_size: int = 16 
+    lr_head: float = 5e-3
+    lr_backbone:  float = 1e-4
     weight_decay: float = 1e-4
-   
-    # Windows: num_workers > 0 pode causar problemas; use 0 se travar
-    num_workers: int = 2
+    num_workers: int = 0  # 0 para estabilidade no Windows
+    patience: int = 10
 
-    # ∘₊✧──✧₊∘ Protocolo LOGO ∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘∘₊✧──────✧₊∘
-    # 0 = todos os pacientes (LOGO completo)
-    # N > 0 = apenas N folds (modo rápido para testes)
-    max_folds: int = 20
+    # ∘₊✧──✧₊∘ Protocolo K-Fold (70-15-15) ∘₊✧──────✧₊∘
+    k_folds: int = 5
+    seed: int = 42
