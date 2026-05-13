@@ -82,9 +82,7 @@ def rodar_ensemble(cfg: Config):
     auc_str = f"{auc_ensemble:.4f}" if auc_ensemble is not None else "N/A"
     
     # Imprimir Relatório Final do Ensemble
-    print(f"\n{'='*65}")
     print("RESULTADO FINAL — ENSEMBLE (ResNet50 + VGG16 + EfficientNetB3)")
-    print(f"{'='*65}")
     print(f" Acurácia Global : {acc_ensemble:.4f}")
     print(f" AUC-ROC Global  : {auc_str}")
     print(f" F1-macro Global : {f1_ensemble:.4f}")

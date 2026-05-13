@@ -51,7 +51,6 @@ def plotar(model_name: str) -> None:
     # matriz de confusão agregada
     cm_total = confusion_matrix(all_y_true, all_y_pred)
 
-    print(f"\n{'='*65}")
     print(f"RESULTADO FINAL — {model_name.upper()} | BreaKHis | Protocolo LOGO")
     print(f"Acurácia: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
     print(f"AUC-ROC: {auc_str}  (agregado — {folds_sem_auc} folds com 1 classe)")
