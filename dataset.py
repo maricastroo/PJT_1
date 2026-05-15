@@ -10,8 +10,8 @@ _STD  = [0.229, 0.224, 0.225]
 
 # Tamanhos oficiais de cada modelo 
 _MODEL_SIZES = {
-    "resnet":       (232, 224),
-    "vgg":          (256, 224),
+    "resnet": (232, 224),
+    "vgg": (256, 224),
     "efficientnet": (320, 300),
 }
 
@@ -24,10 +24,13 @@ def get_transforms(train: bool, model_name: str) -> transforms.Compose:
             transforms.RandomCrop(crop_size),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(15),
+            transforms.RandomRotation(90), #antes era 15 graus, mas aumentei para 90 para mais diversidade e para o treino nao acostumar rapido
+            transforms.RandomGrayscale(p=0.1),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+            transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
             transforms.ToTensor(),
             transforms.Normalize(_MEAN, _STD),
+            transforms.RandomErasing(p=0.2),  #cobre regiões aleatórias
         ])
     return transforms.Compose([
         transforms.Resize(resize_size, interpolation=transforms.InterpolationMode.BICUBIC),
@@ -44,18 +47,17 @@ def label_from_path(path: Path) -> int:
 def patient_id_from_path(path: Path) -> str:
     """
     Extrai o ID do paciente a partir do nome do arquivo BreaKHis.
-    Formato esperado: SOB_<classe>_<subtipo>-<id>-<slide>_<ampliação>-<n>.png
-    Exemplo: SOB_B_A-14-22549AB_40X-0001.png  →  paciente "14-22549AB"
+    Formato do arquivo: SOB_{B|M}_{subtipo}-{ano}-{id}-{ampliação}-{slide}_p{n}.png
+    Exemplo: SOB_B_A-14-22549AB-200X-001_p0  →  paciente "14-22549AB"
 
-    Fallback: usa o diretório pai como identificador, o que funciona
-    para qualquer estrutura de pastas que agrupe imagens por paciente.
+    Fallback: usa o diretório pai como identificador.
     """
-    stem = path.stem
-    # Padrão BreaKHis: SOB_{B|M}_{subtipo}-{patient_id}_{mag}-{n}
-    match = re.match(r"SOB_[BM]_[^-]+-([^_]+)_", stem, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    # Fallback: usa o nome da pasta imediatamente acima
+    # remove sufixo de patch (_p0, _p1, etc.)
+    stem = re.sub(r"_p\d+$", "", path.stem)
+    parts = stem.split("-")
+    # formato: ['SOB_B_A', '14', '22549AB', '200X', '001']
+    if len(parts) >= 3 and parts[0].upper().startswith("SOB"):
+        return f"{parts[1]}-{parts[2]}"
     return path.parent.name
 
 
@@ -77,15 +79,31 @@ class BreaKHisDataset(Dataset):
             img = self.transform(img)
         return img, label
 
+def tem_tecido(path: Path, limiar: float = 220.0) -> bool:
+    """Retorna True se o patch tiver tecido — descarta fundo branco do H&E."""
+    try:
+        img = np.array(Image.open(path).convert("RGB"))
+        return img.mean() < limiar
+    except Exception:
+        return False
+
+
 def scan_patches(patches_dir: str) -> tuple:
     """
     Retorna (paths, labels, patient_ids) — o array de IDs de paciente
     é necessário para o agrupamento LOGO.
+    Patches de fundo branco (sem tecido) são descartados automaticamente.
     """
     patches_path = Path(patches_dir)
     paths, labels, patient_ids = [], [], []
+    descartados = 0
     for p in sorted(patches_path.rglob("*.png")):
+        if not tem_tecido(p):
+            descartados += 1
+            continue
         paths.append(p)
         labels.append(label_from_path(p))
         patient_ids.append(patient_id_from_path(p))
+
+    print(f"Patches com tecido: {len(paths):,} | Descartados (fundo): {descartados:,}")
     return np.array(paths), np.array(labels), np.array(patient_ids)

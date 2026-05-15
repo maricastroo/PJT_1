@@ -34,7 +34,7 @@ from torch.utils.data import DataLoader
 from config import Config
 from dataset import BreaKHisDataset, get_transforms, scan_patches
 from model_resnet import build_resnet50
-from model_efficientnet import build_efficientnet_b0
+from model_efficientnet import build_efficientnet_b3
 from model_vgg import build_vgg16
 
 warnings.filterwarnings("ignore")
@@ -99,7 +99,7 @@ def train_fold(train_paths, test_paths, cfg: Config, device, fold_idx: int, mode
         ], weight_decay=cfg.weight_decay)
 
     elif model_name == "efficientnet":
-        model = build_efficientnet_b0().to(device)
+        model = build_efficientnet_b3().to(device)
         optimizer = optim.AdamW([
             {"params": model.features[6].parameters(), "lr": cfg.lr_backbone},
             {"params": model.features[7].parameters(), "lr": cfg.lr_backbone},

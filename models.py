@@ -1,3 +1,10 @@
+"""
+Define as 3 CNNs usadas no projeto: ResNet-50, EfficientNet-B3 e VGG-16.
+Todas são pré-treinadas no ImageNet com fine-tuning apenas nas camadas finais.
+
+Não é executado diretamente, é importado pelo train_kfold.py.
+"""
+
 import torch.nn as nn
 from torchvision import models
 from torchvision.models import ResNet50_Weights, EfficientNet_B3_Weights, VGG16_Weights

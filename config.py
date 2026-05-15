@@ -14,12 +14,12 @@ class Config:
 
     # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘
     num_epochs: int = 50
-    batch_size: int = 16 
-    lr_head: float = 5e-3
-    lr_backbone:  float = 1e-4
-    weight_decay: float = 1e-4
-    num_workers: int = 0  # 0 para estabilidade no Windows
-    patience: int = 10
+    batch_size: int = 64 
+    lr_head: float = 1e-3
+    lr_backbone:  float = 5e-5
+    weight_decay: float = 1e-3
+    num_workers: int = 2  # 0 para estabilidade no Windows
+    patience: int = 15
 
     # ∘₊✧──✧₊∘ Protocolo K-Fold (70-15-15) ∘₊✧──────✧₊∘
     k_folds: int = 5

@@ -1,3 +1,14 @@
+"""
+Treina os modelos com protocolo LOGO (70% treino | 15% validação | 15% teste),
+dividindo os dados por paciente para evitar vazamento entre conjuntos.
+Cada rodada usa uma seed diferente para garantir divisões distintas.
+
+Uso:
+    python train_kfold.py --model resnet
+    python train_kfold.py --model efficientnet
+    python train_kfold.py --model vgg
+"""
+
 import argparse
 import copy
 import json
@@ -198,9 +209,10 @@ def run_kfold(cfg: Config, model_name: str):
                 mark = ""
 
             print(
-                f"Ep {epoch:02d} | Tr Loss: {tr_loss:.4f} Acc: {tr_acc:.4f} "
-                f"| Val Loss: {val_loss:.4f} Acc: {val_acc:.4f} {mark} "
-                f"| {time.time()-t0:.1f}s"
+                f"  ep {epoch:02d}/{cfg.num_epochs} | "
+                f"treino  loss={tr_loss:.4f}  acc={tr_acc:.4f} | "
+                f"val  loss={val_loss:.4f}  acc={val_acc:.4f} | "
+                f"{time.time()-t0:.1f}s {mark}"
             )
             if no_improve >= cfg.patience:
                 print("Early stopping ativado.")
