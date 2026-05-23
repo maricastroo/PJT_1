@@ -1,5 +1,5 @@
 """
-Lê o results.json gerado pelo train_logo.py e plota os gráficos.
+Lê o results.json gerado pelo train_kfold.py e plota os gráficos.
 Uso:
     python plot_resultados.py --model resnet
     python plot_resultados.py --model efficientnet
@@ -12,10 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-from sklearn.metrics import (
-    roc_auc_score, roc_curve, confusion_matrix,
-    classification_report, f1_score, accuracy_score
-)
+from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, classification_report
 
 from config import Config
 
@@ -30,6 +27,7 @@ def plotar(model_name: str) -> None:
         data = json.load(f)
 
     folds = data["folds"]
+    titulo = f"{model_name.upper()} — BreaKHis — Protocolo LOGO"
 
     # agrega y_true e y_prob de todos os folds
     all_y_true, all_y_prob = [], []
@@ -39,45 +37,88 @@ def plotar(model_name: str) -> None:
 
     all_y_pred = [1 if p >= 0.5 else 0 for p in all_y_prob]
 
-    # métricas por fold
-    accs = [r["acc"] for r in folds]
-    f1s  = [r["f1"]  for r in folds]
-    folds_sem_auc = sum(1 for r in folds if r["auc"] is None)
-
-    # AUC global agregado
+    accs = [r["test_acc"] for r in folds]
     auc_global = roc_auc_score(all_y_true, all_y_prob) if len(set(all_y_true)) > 1 else None
     auc_str = f"{auc_global:.4f}" if auc_global is not None else "N/A"
-
-    # matriz de confusão agregada
     cm_total = confusion_matrix(all_y_true, all_y_pred)
 
+    print(f"\n{'='*65}")
     print(f"RESULTADO FINAL — {model_name.upper()} | BreaKHis | Protocolo LOGO")
-    print(f"Acurácia: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
-    print(f"AUC-ROC: {auc_str}  (agregado — {folds_sem_auc} folds com 1 classe)")
-    print(f"F1-macro: {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
+    print(f"Acurácia média: {np.mean(accs):.4f} ± {np.std(accs):.4f}")
+    print(f"AUC-ROC global: {auc_str}")
     print()
     print(classification_report(all_y_true, all_y_pred, target_names=["Benigno", "Maligno"]))
 
-    titulo = f"{model_name.upper()} — BreaKHis — Protocolo LOGO"
-    folds_idx = range(1, len(accs) + 1)
+    # --- gráfico 1: curvas de treino e validação (loss) ---
+    historicos = [r["historico"] for r in folds if "historico" in r]
+    if historicos:
+        n_epocas = max(len(h) for h in historicos)
+        epocas = list(range(1, n_epocas + 1))
 
-    # gráfico 1: acurácia por fold 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(folds_idx, accs, color="steelblue", alpha=0.75)
-    ax.axhline(np.mean(accs), color="red", ls="--", label=f"Média = {np.mean(accs):.3f}")
-    ax.set_title(f"Acurácia por Fold (LOGO)\n{titulo}")
-    ax.set_xlabel("Fold (paciente)")
-    ax.set_ylabel("Acurácia")
-    ax.set_ylim(0, 1)
-    ax.legend()
-    ax.grid(alpha=0.3)
-    plt.tight_layout()
-    caminho = out_dir / "grafico_acuracia.png"
-    plt.savefig(caminho, dpi=150, bbox_inches="tight")
-    plt.show()
-    print(f"Salvo: {caminho}")
+        # média e desvio por época entre os folds
+        tr_losses  = np.full((len(historicos), n_epocas), np.nan)
+        val_losses = np.full((len(historicos), n_epocas), np.nan)
+        tr_accs    = np.full((len(historicos), n_epocas), np.nan)
+        val_accs   = np.full((len(historicos), n_epocas), np.nan)
 
-    # gráfico 2: curva ROC agregada
+        for i, h in enumerate(historicos):
+            for ep in h:
+                idx = ep["epoca"] - 1
+                tr_losses[i, idx]  = ep["tr_loss"]
+                val_losses[i, idx] = ep["val_loss"]
+                tr_accs[i, idx]    = ep["tr_acc"]
+                val_accs[i, idx]   = ep["val_acc"]
+
+        # curva de loss
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(epocas, np.nanmean(tr_losses, axis=0),  color="steelblue",  lw=2, label="Treino")
+        ax.plot(epocas, np.nanmean(val_losses, axis=0), color="darkorange", lw=2, label="Validação")
+        ax.fill_between(epocas,
+                        np.nanmean(tr_losses, axis=0) - np.nanstd(tr_losses, axis=0),
+                        np.nanmean(tr_losses, axis=0) + np.nanstd(tr_losses, axis=0),
+                        alpha=0.15, color="steelblue")
+        ax.fill_between(epocas,
+                        np.nanmean(val_losses, axis=0) - np.nanstd(val_losses, axis=0),
+                        np.nanmean(val_losses, axis=0) + np.nanstd(val_losses, axis=0),
+                        alpha=0.15, color="darkorange")
+        ax.set_title(f"Curva de Loss (média dos folds)\n{titulo}")
+        ax.set_xlabel("Época")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        caminho = out_dir / "grafico_loss.png"
+        plt.savefig(caminho, dpi=150, bbox_inches="tight")
+        plt.show()
+        print(f"Salvo: {caminho}")
+
+        # curva de acurácia
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(epocas, np.nanmean(tr_accs, axis=0),  color="steelblue",  lw=2, label="Treino")
+        ax.plot(epocas, np.nanmean(val_accs, axis=0), color="darkorange", lw=2, label="Validação")
+        ax.fill_between(epocas,
+                        np.nanmean(tr_accs, axis=0) - np.nanstd(tr_accs, axis=0),
+                        np.nanmean(tr_accs, axis=0) + np.nanstd(tr_accs, axis=0),
+                        alpha=0.15, color="steelblue")
+        ax.fill_between(epocas,
+                        np.nanmean(val_accs, axis=0) - np.nanstd(val_accs, axis=0),
+                        np.nanmean(val_accs, axis=0) + np.nanstd(val_accs, axis=0),
+                        alpha=0.15, color="darkorange")
+        ax.set_title(f"Curva de Acurácia (média dos folds)\n{titulo}")
+        ax.set_xlabel("Época")
+        ax.set_ylabel("Acurácia")
+        ax.set_ylim(0, 1)
+        ax.legend()
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        caminho = out_dir / "grafico_acc_curva.png"
+        plt.savefig(caminho, dpi=150, bbox_inches="tight")
+        plt.show()
+        print(f"Salvo: {caminho}")
+    else:
+        print("Histórico de épocas não encontrado — retreine para gerar as curvas.")
+
+    # --- gráfico 2: curva ROC agregada ---
     if auc_global is not None:
         fig, ax = plt.subplots(figsize=(7, 7))
         fpr, tpr, _ = roc_curve(all_y_true, all_y_prob)
@@ -96,9 +137,9 @@ def plotar(model_name: str) -> None:
         plt.show()
         print(f"Salvo: {caminho}")
     else:
-        print("Curva ROC não gerada: todos os folds tinham apenas uma classe.")
+        print("Curva ROC não gerada: apenas uma classe presente.")
 
-    # gráfico 3: matriz de confusão 
+    # --- gráfico 3: matriz de confusão ---
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(cm_total, annot=True, fmt="d", cmap="Blues", ax=ax,
                 xticklabels=["Benigno", "Maligno"],
@@ -111,12 +152,6 @@ def plotar(model_name: str) -> None:
     plt.savefig(caminho, dpi=150, bbox_inches="tight")
     plt.show()
     print(f"Salvo: {caminho}")
-
-    # atualiza o json com auc_global
-    data["auc_global"] = float(auc_global) if auc_global is not None else None
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"\nJSON atualizado com auc_global={auc_str}")
 
 
 if __name__ == "__main__":

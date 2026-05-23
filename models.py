@@ -15,8 +15,6 @@ def build_resnet50(num_classes: int = 2, dropout: float = 0.2) -> nn.Module:
     for p in model.layer4.parameters(): p.requires_grad = True
     
     model.fc = nn.Sequential(
-        nn.Linear(2048, 512), 
-        nn.Dropout(dropout),
         nn.Linear(512, 256),
         nn.ReLU(inplace=True),
         nn.Dropout(dropout),
@@ -31,7 +29,7 @@ def build_efficientnet_b3(num_classes: int = 2, dropout: float = 0.3) -> nn.Modu
     # Descongela blocos 7 e 8 para fine-tuning
     for p in model.features[7].parameters(): p.requires_grad = True
     for p in model.features[8].parameters(): p.requires_grad = True
-    
+            
     # Cabeça recebe 1536 features
     num_ftrs = model.classifier[1].in_features
     model.classifier = nn.Sequential(
@@ -48,12 +46,12 @@ def build_vgg16(num_classes: int = 2, dropout: float = 0.5) -> nn.Module:
     
     in_features = model.classifier[0].in_features
     model.classifier = nn.Sequential(
-        nn.Linear(in_features, 4096),
+        nn.Linear(in_features, 512),
         nn.ReLU(inplace=True),
         nn.Dropout(p=dropout),
-        nn.Linear(4096, 512),
+        nn.Linear(512, 256),
         nn.ReLU(inplace=True),
         nn.Dropout(p=dropout),
-        nn.Linear(512, num_classes)
+        nn.Linear(256, num_classes)
     )
     return model
