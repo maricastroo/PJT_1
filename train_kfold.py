@@ -1,3 +1,14 @@
+"""
+Treina os modelos com protocolo LOGO (70% treino | 15% validação | 15% teste),
+dividindo os dados por paciente para evitar vazamento entre conjuntos.
+Cada rodada usa uma seed diferente para garantir divisões distintas.
+
+Uso:
+    python train_kfold.py --model resnet
+    python train_kfold.py --model efficientnet
+    python train_kfold.py --model vgg
+"""
+
 import argparse
 import copy
 import json
@@ -92,14 +103,14 @@ def run_epoch(model, loader, criterion, optimizer=None, device="cpu", desc=""):
 def get_optimizer(model, model_name, cfg):
     if model_name == "resnet":
         return optim.AdamW([
-            {"params": model.layer4.parameters(),    "lr": cfg.lr_backbone},
-            {"params": model.fc.parameters(),         "lr": cfg.lr_head},
+            {"params": model.layer4.parameters(), "lr": cfg.lr_backbone},
+            {"params": model.fc.parameters(), "lr": cfg.lr_head},
         ], weight_decay=cfg.weight_decay)
     elif model_name == "efficientnet":
         return optim.AdamW([
             {"params": model.features[7].parameters(), "lr": cfg.lr_backbone},
             {"params": model.features[8].parameters(), "lr": cfg.lr_backbone},
-            {"params": model.classifier.parameters(),  "lr": cfg.lr_head},
+            {"params": model.classifier.parameters(), "lr": cfg.lr_head},
         ], weight_decay=cfg.weight_decay)
     elif model_name == "vgg":
         backbone_params = [
@@ -107,7 +118,7 @@ def get_optimizer(model, model_name, cfg):
             for p in layer.parameters()
         ]
         return optim.AdamW([
-            {"params": backbone_params,               "lr": cfg.lr_backbone},
+            {"params": backbone_params, "lr": cfg.lr_backbone},
             {"params": model.classifier.parameters(), "lr": cfg.lr_head},
         ], weight_decay=cfg.weight_decay)
 
@@ -142,6 +153,19 @@ def run_kfold(cfg: Config, model_name: str):
         X_val,   y_val   = paths[val_mask],    labels[val_mask]
         X_test,  y_test  = paths[test_mask],   labels[test_mask]
 
+        # limita patches por paciente no treino para reduzir overfitting
+        if cfg.max_patches_por_paciente > 0:
+            pids_train = patient_ids[train_mask]
+            rng = np.random.default_rng(current_seed)
+            idx_selecionados = []
+            for pid in np.unique(pids_train):
+                idx_pid = np.where(pids_train == pid)[0]
+                if len(idx_pid) > cfg.max_patches_por_paciente:
+                    idx_pid = rng.choice(idx_pid, cfg.max_patches_por_paciente, replace=False)
+                idx_selecionados.extend(idx_pid.tolist())
+            X_train = X_train[idx_selecionados]
+            y_train = y_train[idx_selecionados]
+
         print(f"Pacientes → Treino: {split_info['n_patients_train']} | "
               f"Val: {split_info['n_patients_val']} | "
               f"Teste: {split_info['n_patients_test']}")
@@ -170,17 +194,18 @@ def run_kfold(cfg: Config, model_name: str):
             counts.sum() / (2.0 * counts + 1e-9), dtype=torch.float
         ).to(device)
 
-        if   model_name == "resnet":       model = build_resnet50().to(device)
+        if   model_name == "resnet": model = build_resnet50().to(device)
         elif model_name == "efficientnet": model = build_efficientnet_b3().to(device)
-        elif model_name == "vgg":          model = build_vgg16().to(device)
+        elif model_name == "vgg": model = build_vgg16().to(device)
 
-        criterion = nn.CrossEntropyLoss(weight=class_w)
+        criterion = nn.CrossEntropyLoss(weight=class_w, label_smoothing=0.1)
         optimizer = get_optimizer(model, model_name, cfg)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=0.5, patience=2
         )
 
         best_loss, best_state, no_improve = float("inf"), None, 0
+        historico = []
 
         for epoch in range(1, cfg.num_epochs + 1):
             t0 = time.time()
@@ -190,6 +215,14 @@ def run_kfold(cfg: Config, model_name: str):
                                                  desc=f"Ep {epoch:02d} Validação")
             scheduler.step(val_loss)
 
+            historico.append({
+                "epoca":    epoch,
+                "tr_loss":  round(tr_loss,  4),
+                "tr_acc":   round(tr_acc,   4),
+                "val_loss": round(val_loss, 4),
+                "val_acc":  round(val_acc,  4),
+            })
+
             if val_loss < best_loss:
                 best_loss, best_state, no_improve = val_loss, copy.deepcopy(model.state_dict()), 0
                 mark = "*"
@@ -198,9 +231,10 @@ def run_kfold(cfg: Config, model_name: str):
                 mark = ""
 
             print(
-                f"Ep {epoch:02d} | Tr Loss: {tr_loss:.4f} Acc: {tr_acc:.4f} "
-                f"| Val Loss: {val_loss:.4f} Acc: {val_acc:.4f} {mark} "
-                f"| {time.time()-t0:.1f}s"
+                f"  ep {epoch:02d}/{cfg.num_epochs} | "
+                f"treino  loss={tr_loss:.4f}  acc={tr_acc:.4f} | "
+                f"val  loss={val_loss:.4f}  acc={val_acc:.4f} | "
+                f"{time.time()-t0:.1f}s {mark}"
             )
             if no_improve >= cfg.patience:
                 print("Early stopping ativado.")
@@ -227,6 +261,7 @@ def run_kfold(cfg: Config, model_name: str):
             "test_acc":         test_acc,
             "y_true":           y_true,
             "y_prob":           y_prob,
+            "historico":        historico,
         })
 
         del model, optimizer, train_loader, val_loader, test_loader
