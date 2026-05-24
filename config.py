@@ -22,6 +22,9 @@ class Config:
     max_patches_por_paciente: int = 0
     patience: int = 10
 
+    # ∘₊✧──✧₊∘ VGG-16 ∘₊✧──────✧₊∘
+    vgg_use_gap: bool = False  # True = GAP(1×1) + ~132K params | False = Linear(25088) + ~13M params
+
     # ∘₊✧──✧₊∘ Protocolo K-Fold (70-15-15) ∘₊✧──────✧₊∘
     k_folds: int = 5
     seed: int = 42

@@ -52,21 +52,36 @@ def build_efficientnet_b3(num_classes: int = 2, dropout: float = 0.5) -> nn.Modu
     return model
 
 
-def build_vgg16(num_classes: int = 2, dropout: float = 0.5) -> nn.Module:
+def build_vgg16(num_classes: int = 2, dropout: float = 0.5, use_gap: bool = False) -> nn.Module:
+    """
+    use_gap=False (padrão): classificador original com Linear(25088→512), ~13M parâmetros
+    use_gap=True:           GAP(1×1) antes do classificador, Linear(512→256), ~132K parâmetros
+    """
     model = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
     for p in model.parameters(): p.requires_grad = False
     # Descongela a partir do bloco 24
     for p in model.features[24:].parameters(): p.requires_grad = True
 
-    in_features = model.classifier[0].in_features
-    model.classifier = nn.Sequential(
-        nn.Linear(in_features, 512),
-        nn.ReLU(inplace=True),
-        nn.BatchNorm1d(512),
-        nn.Dropout(p=dropout),
-        nn.Linear(512, 256),
-        nn.ReLU(inplace=True),
-        nn.Dropout(p=dropout),
-        nn.Linear(256, num_classes)
-    )
+    if use_gap:
+        model.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        model.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(512, 256),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(256),
+            nn.Dropout(p=dropout),
+            nn.Linear(256, num_classes),
+        )
+    else:
+        in_features = model.classifier[0].in_features
+        model.classifier = nn.Sequential(
+            nn.Linear(in_features, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(p=dropout),
+            nn.Linear(512, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(256, num_classes),
+        )
     return model

@@ -196,7 +196,7 @@ def run_kfold(cfg: Config, model_name: str):
 
         if   model_name == "resnet": model = build_resnet50().to(device)
         elif model_name == "efficientnet": model = build_efficientnet_b3().to(device)
-        elif model_name == "vgg": model = build_vgg16().to(device)
+        elif model_name == "vgg": model = build_vgg16(use_gap=cfg.vgg_use_gap).to(device)
 
         criterion = nn.CrossEntropyLoss(weight=class_w, label_smoothing=0.1)
         optimizer = get_optimizer(model, model_name, cfg)
@@ -278,7 +278,10 @@ def run_kfold(cfg: Config, model_name: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=["resnet", "efficientnet", "vgg"], required=True)
+    parser.add_argument("--vgg-gap", action="store_true", help="VGG-16 com GAP (1×1) em vez de Linear(25088)")
     args = parser.parse_args()
 
     cfg = Config()
+    if args.vgg_gap:
+        cfg.vgg_use_gap = True
     run_kfold(cfg, args.model)

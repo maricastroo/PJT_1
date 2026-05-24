@@ -1,32 +1,34 @@
-MUDANÇAS — ANTI-OVERFITTING E VOTING ENSEMBLE
+MUDANCAS — ANTI-OVERFITTING E VOTING ENSEMBLE
+
 
 CONTEXTO
 
-Os modelos apresentavam gap grande entre acurácia de treino e validação/teste,
-indicando overfitting. As mudanças abaixo atacam esse problema e adicionam um
-novo arquivo de comparação de estratégias de ensemble.
+Os modelos apresentavam gap grande entre acuracia de treino e validacao/teste,
+indicando overfitting. As mudancas abaixo atacam esse problema e adicionam um
+novo arquivo de comparacao de estrategias de ensemble.
 
 
 ARQUIVO: models.py
 
-ResNet-50 — correção de bug + cabeça própria
 
-  Problema: a cabeça classificadora usava nn.Linear(512, 256), mas o backbone
-  ResNet-50 produz vetores de 2048 dimensões. Isso causava erro em runtime.
+ResNet-50 — correcao de bug + cabeca propria
 
-  Solução: criada a classe ResNetHead(nn.Module) com forward() explícito:
+  Problema: a cabeca classificadora usava nn.Linear(512, 256), mas o backbone
+  ResNet-50 produz vetores de 2048 dimensoes. Isso causava erro em runtime.
+
+  Solucao: criada a classe ResNetHead(nn.Module) com forward() explicito:
 
     BatchNorm1d(2048) -> Linear(2048->256) -> ReLU -> Dropout(0.5) -> Linear(256->2)
 
-  - BatchNorm1d normaliza as ativações antes das lineares, reduzindo dependência
-    de padrões específicos do treino
-  - Dropout aumentado de 0.2 para 0.5 para forçar mais redundância
+  - BatchNorm1d normaliza as ativacoes antes das lineares, reduzindo dependencia
+    de padroes especificos do treino
+  - Dropout aumentado de 0.2 para 0.5
   - in_features lido dinamicamente de model.fc.in_features (sem hardcode)
 
 
 EfficientNet-B3
 
-  - Dropout aumentado de 0.3 para 0.5 na cabeça classificadora
+  - Dropout aumentado de 0.3 para 0.5 na cabeca classificadora
 
 
 VGG-16
@@ -42,23 +44,28 @@ Label Smoothing
   Antes:  nn.CrossEntropyLoss(weight=class_w)
   Depois: nn.CrossEntropyLoss(weight=class_w, label_smoothing=0.1)
 
-  Com label_smoothing=0.1 o modelo é penalizado por ficar 100% confiante nas
-  predições de treino. Em vez de empurrar a probabilidade da classe correta para
-  1.0, o alvo suavizado fica em 0.9. Isso reduz a confiança excessiva que é
-  característica do overfitting.
+  Com label_smoothing=0.1 o modelo e penalizado por ficar 100% confiante nas
+  predicoes de treino. Isso reduz a confianca excessiva caracteristica do overfitting.
+
+ARQUIVO: config.py
+
+Novo parametro:
+
+  vgg_use_gap: bool = False
+  Controla qual versao do classificador VGG-16 sera usada (ver secao abaixo).
 
 ARQUIVO: voting.py
 
-Após treinar os 3 modelos e gerar os JSONs em resultados/, execute:
+Apos treinar os 3 modelos e gerar os JSONs em resultados/, execute:
 
     python voting.py
 
 O script carrega os resultados de ResNet-50, EfficientNet-B3 e VGG-16 e
-compara três estratégias de fusão usando P(maligno) de cada modelo:
+compara tres estrategias de fusao usando P(maligno) de cada modelo:
 
   SOMA
     P_final = (p_resnet + p_effnet + p_vgg) / 3
-    Média aritmética. Baseline robusto.
+    Media aritmetica. Baseline robusto.
 
   PRODUTO
     P_final = (p1 * p2 * p3) / (p1*p2*p3 + (1-p1)*(1-p2)*(1-p3))
@@ -67,15 +74,34 @@ compara três estratégias de fusão usando P(maligno) de cada modelo:
 
   MAX
     P_final = max(p_resnet, p_effnet, p_vgg)
-    Basta um modelo confiante para empurrar a decisão.
+    Basta um modelo confiante para classificar como maligno.
 
   Em todos os casos:
     P(maligno) >= 0.5  ->  Maligno
     P(maligno) <  0.5  ->  Benigno
     P(benigno) = 1 - P(maligno)
 
-  Saída no terminal: tabela comparando AUC-ROC, F1-macro e acurácia de cada
-  estratégia, com declaração do melhor método por AUC-ROC.
+  Saida no terminal: tabela comparando AUC-ROC, F1-macro e acuracia de cada
+  estrategia, com declaracao do melhor metodo por AUC-ROC.
 
-  Saída em arquivo: resultados/voting/results.json
+  Saida em arquivo: resultados/voting/results.json
 
+
+COMPARACAO VGG-16 COM E SEM GAP
+
+Adicionado parametro use_gap ao build_vgg16() para comparar duas versoes:
+
+  use_gap=False (padrao)
+    AdaptiveAvgPool2d(7,7) -> flatten -> Linear(25088->512) -> ...
+    ~13 milhoes de parametros no classificador
+
+  use_gap=True
+    AdaptiveAvgPool2d(1,1) -> flatten -> Linear(512->256) -> ...
+    ~132 mil parametros no classificador (reducao de ~99%)
+
+  A reducao elimina estruturalmente os parametros responsaveis pelo overfitting
+  no VGG, diferente do Dropout que apenas os desativa aleatoriamente.
+
+  Para treinar e comparar:
+    python train_kfold.py --model vgg            (sem GAP)
+    python train_kfold.py --model vgg --vgg-gap  (com GAP)
