@@ -198,7 +198,7 @@ def run_kfold(cfg: Config, model_name: str):
         elif model_name == "efficientnet": model = build_efficientnet_b3().to(device)
         elif model_name == "vgg": model = build_vgg16().to(device)
 
-        criterion = nn.CrossEntropyLoss(weight=class_w)
+        criterion = nn.CrossEntropyLoss(weight=class_w, label_smoothing=0.1)
         optimizer = get_optimizer(model, model_name, cfg)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode="min", factor=0.5, patience=2

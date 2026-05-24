@@ -3,9 +3,9 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     # ∘₊✧──✧₊∘ Caminhos ∘₊✧──────✧₊∘
-    dataset_dir: str = r"C:\Users\maria\Documents\PJT-1\BreaKHis_v1\histology_slides\breast"
-    patches_dir: str = r"C:\Users\maria\Documents\PJT-1\BreaKHis_Patches"
-    output_dir:  str = r"C:\Users\maria\Documents\PJT-1\resultados"
+    dataset_dir: str = "/home/larissaac/Personal/dataset/BreaKHis_v1/BreaKHis_v1/histology_slides/breast"
+    patches_dir: str = "/home/larissaac/Personal/patches"
+    output_dir:  str = "/home/larissaac/Personal/PJT_1/resultados"
 
     # ∘₊✧──✧₊∘ Janela deslizante ∘₊✧──────✧₊∘
     patch_size: int = 96

@@ -20,21 +20,23 @@ Classificação binária de imagens histopatológicas (benigno vs. maligno) usan
 PJT-1/
 ├── config.py              # configurações centrais (caminhos, hiperparâmetros)
 ├── dataset.py             # dataset PyTorch + extração de ID de paciente
-├── ensemble.py            # fusão das CNN com Late Fusion / Soft Voting
+├── models.py              # ResNet-50, EfficientNet-B3 e VGG-16 com fine-tuning
+├── train_kfold.py         # treinamento com protocolo LOGO k-fold
+├── voting.py              # comparação de estratégias de ensemble (soma, produto, max)
+├── ensemble.py            # fusão soft voting legado
 ├── extract_patches.py     # extração de patches com janela deslizante
-├── model_resnet.py        # ResNet-50 com fine-tuning
-├── model_efficientnet.py  # EfficientNet-B3 com fine-tuning
-├── model_vgg.py           # VGG-16 com fine-tuning
-├── train_logo.py          # treinamento com protocolo LOGO
 ├── plot_resultados.py     # geração de gráficos a partir dos resultados
+├── docs/
+│   └── mudancas.txt       # descrição das mudanças recentes
 └── resultados/
     ├── resnet/
-    │   ├── results.json
-    │   ├── grafico_acuracia.png
-    │   ├── grafico_roc.png
-    │   └── grafico_confusao.png
+    │   └── results.json
     ├── efficientnet/
-    └── vgg/
+    │   └── results.json
+    ├── vgg/
+    │   └── results.json
+    └── voting/
+        └── results.json
 ```
 
 ---
@@ -59,60 +61,55 @@ python extract_patches.py
 ### 2. Treinamento
 
 ```bash
-python train_logo.py --model resnet
-python train_logo.py --model efficientnet
-python train_logo.py --model vgg
+python train_kfold.py --model resnet
+python train_kfold.py --model efficientnet
+python train_kfold.py --model vgg
 ```
 
-Argumentos opcionais (exceto 'model'):
-
-| Argumento | Descrição | Padrão |
-|---|---|---|
-| `--model` | modelo a treinar (`resnet`, `efficientnet`, `vgg`) | obrigatório |
-| `--max-folds` | limita o número de folds (0 = todos) | valor em config.py |
-| `--epochs` | número de épocas por fold | valor em config.py |
-| `--workers` | número de workers do DataLoader | valor em config.py |
-
 **Protocolo LOGO:**
-- Cada fold usa um paciente diferente como teste
-- Os folds são sorteados com `seed=42` — os 3 modelos usam exatamente os mesmos folds (essencial para a fusão posterior)
+- Cada rodada usa uma seed diferente para garantir divisões distintas
+- Split 70% treino | 15% validação | 15% teste, dividido por paciente
 - Nenhum patch do paciente de teste aparece no treino
 
 **Balanceamento de classes:**
 - Resolvido via `CrossEntropyLoss` com pesos inversamente proporcionais ao número de amostras de cada classe
+- `label_smoothing=0.1` para reduzir confiança excessiva no treino
 
 **Fine-tuning:**
 
 | Modelo | Camadas descongeladas | Cabeça classificadora |
 |---|---|---|
-| ResNet-50 | `layer4` | Linear(2048→512→256→2) |
-| EfficientNet-B3 | `features[6]` e `features[7]` | Dropout + Linear(1536→2) |
-| VGG-16 | `features[24:]` | Linear(25088→4096→512→2) |
+| ResNet-50 | `layer4` | BatchNorm + Linear(2048→256) + Dropout(0.5) + Linear(256→2) |
+| EfficientNet-B3 | `features[7]` e `features[8]` | Dropout(0.5) + Linear(1536→2) |
+| VGG-16 | `features[24:]` | Linear(25088→512) + BatchNorm + Dropout(0.5) + Linear(512→256) + Dropout(0.5) + Linear(256→2) |
 
 **Outros detalhes:**
 - Otimizador: AdamW com learning rates diferenciadas (cabeça vs. backbone)
-- Scheduler: ReduceLROnPlateau (fator 0.5, paciência 3)
-- Sem early stopping — épocas fixas
-- Melhor estado do modelo (menor val loss) é restaurado ao final de cada fold
+- Scheduler: ReduceLROnPlateau (fator 0.5, paciência 2)
+- Early stopping com paciência 10 — restaura o melhor estado ao final de cada fold
 - Memória liberada entre folds: `gc.collect()` + `cuda.empty_cache()`
 
 ---
 
-### 3. Fusão das redes
+### 3. Voting Ensemble
 
-Executar após ter os JSONs da ResNet50, VGG16 e EfficientNetB3.
+Executar após ter os JSONs dos 3 modelos.
 
 ```bash
-python ensemble.py
-
-# Opcional para especificar pasta de output customizada
-python ensemble.py --output-dir "caminho/para/outputs"
+python voting.py
 ```
 
-Faz a fusão a nível de decisão dos 3 modelos de redes neurais após o treinamento individual de cada uma (Late Fusion).
-Utiliza a saída da camada Softmax de cada rede para fazer a média das probabilidades (Soft Voting) para cada patch analisado.
+Compara três estratégias de fusão usando `P(maligno)` de cada modelo:
 
+| Estratégia | Fórmula | Comportamento |
+|---|---|---|
+| Soma | `(p1 + p2 + p3) / 3` | Média aritmética — baseline robusto |
+| Produto | `p1·p2·p3 / (p1·p2·p3 + (1−p1)·(1−p2)·(1−p3))` | Exige consenso dos 3 modelos |
+| Max | `max(p1, p2, p3)` | Qualquer modelo confiante domina |
 
+Em todos os casos: `P(maligno) >= 0.5 → Maligno`, caso contrário `→ Benigno`.
+
+Imprime tabela comparativa (AUC-ROC, F1-macro, acurácia) e declara o melhor método. Salva os resultados em `resultados/voting/results.json`.
 
 ---
 
@@ -125,10 +122,11 @@ python plot_resultados.py --model vgg
 python plot_resultados.py --model ensemble
 ```
 
-Gera 3 gráficos separados para cada modelo:
+Gera gráficos para cada modelo:
 
-- **grafico_acuracia.png** — acurácia por fold com linha da média
-- **grafico_roc.png** — curva ROC agregada (todos os folds combinados)
+- **grafico_loss.png** — curva de loss treino vs. validação (mostra overfitting)
+- **grafico_acc_curva.png** — curva de acurácia treino vs. validação
+- **grafico_roc.png** — curva ROC agregada
 - **grafico_confusao.png** — matriz de confusão agregada
 
 ---
@@ -136,18 +134,36 @@ Gera 3 gráficos separados para cada modelo:
 ## Configurações (config.py)
 
 ```python
-patch_size  = 96       # tamanho do patch em pixels
-stride      = 47       # stride da janela deslizante
+dataset_dir  = "/home/larissaac/Personal/dataset/BreaKHis_v1/BreaKHis_v1/histology_slides/breast"
+patches_dir  = "/home/larissaac/Personal/patches"
+output_dir   = "/home/larissaac/Personal/PJT_1/resultados"
+
+patch_size   = 96      # tamanho do patch em pixels
+stride       = 47      # stride da janela deslizante
 magnification = "200X" # ampliação utilizada
 
-num_epochs  = 10       # épocas por fold (fixo, sem early stopping)
-batch_size  = 128
-lr_head     = 5e-3     # learning rate da cabeça classificadora
-lr_backbone = 1e-4     # learning rate das camadas descongeladas
-weight_decay = 1e-4
-num_workers = 2        # use 0 se travar no Windows
+num_epochs   = 50      # épocas por fold (early stopping pode parar antes)
+batch_size   = 64
+lr_head      = 1e-4    # learning rate da cabeça classificadora
+lr_backbone  = 5e-5    # learning rate das camadas descongeladas
+weight_decay = 1e-3
+patience     = 10      # early stopping
 
-max_folds   = 0        # 0 = todos os pacientes | N = modo rápido
+k_folds      = 5
+seed         = 42
+```
+
+---
+
+## Ambiente
+
+```bash
+# Criar e ativar ambiente virtual
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Instalar dependências
+pip install torch torchvision scikit-learn matplotlib seaborn tqdm Pillow opencv-python-headless
 ```
 
 ---
@@ -162,13 +178,14 @@ scikit-learn
 matplotlib
 seaborn
 Pillow
-opencv-python
+opencv-python-headless
 tqdm
 ```
 
 ---
 
-## Hardware utilizado
+## Hardware recomendado
 
-- GPU: NVIDIA RTX 3060 (12 GB VRAM)
-- Tempo estimado por modelo (20 folds × 10 épocas): ~5–6 horas
+- GPU: NVIDIA RTX 3060 (12 GB VRAM) ou equivalente
+- Tempo estimado por modelo com GPU (5 folds × até 50 épocas com early stopping): ~5–6 horas
+- Sem GPU: inviável para treino completo
