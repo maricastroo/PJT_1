@@ -19,7 +19,22 @@ from config import Config
 
 def plotar(model_name: str) -> None:
     cfg = Config()
-    out_dir = Path(cfg.output_dir) / model_name
+
+    if model_name == "ensemble":
+        comparison_path = Path(cfg.output_dir) / "ensemble_comparison" / "results.json"
+        if not comparison_path.exists():
+            raise FileNotFoundError(
+                f"Execute 'python ensemble.py' antes de plotar o ensemble.\n"
+                f"Esperado: {comparison_path}"
+            )
+        with open(comparison_path, "r", encoding="utf-8") as f:
+            comparison = json.load(f)
+        melhor = comparison["melhor_estrategia"]
+        out_dir = Path(cfg.output_dir) / f"ensemble_{melhor}"
+        print(f"Melhor estratégia: {melhor.upper()}")
+    else:
+        out_dir = Path(cfg.output_dir) / model_name
+
     json_path = out_dir / "results.json"
 
     print(f"Lendo: {json_path}")
@@ -37,7 +52,7 @@ def plotar(model_name: str) -> None:
 
     all_y_pred = [1 if p >= 0.5 else 0 for p in all_y_prob]
 
-    accs = [r["test_acc"] for r in folds]
+    accs = [r.get("test_acc", r.get("acc", 0.0)) for r in folds]
     auc_global = roc_auc_score(all_y_true, all_y_prob) if len(set(all_y_true)) > 1 else None
     auc_str = f"{auc_global:.4f}" if auc_global is not None else "N/A"
     cm_total = confusion_matrix(all_y_true, all_y_pred)
@@ -89,7 +104,7 @@ def plotar(model_name: str) -> None:
         plt.tight_layout()
         caminho = out_dir / "grafico_loss.png"
         plt.savefig(caminho, dpi=150, bbox_inches="tight")
-        plt.show()
+        plt.close()
         print(f"Salvo: {caminho}")
 
         # curva de acurácia
@@ -113,7 +128,7 @@ def plotar(model_name: str) -> None:
         plt.tight_layout()
         caminho = out_dir / "grafico_acc_curva.png"
         plt.savefig(caminho, dpi=150, bbox_inches="tight")
-        plt.show()
+        plt.close()
         print(f"Salvo: {caminho}")
     else:
         print("Histórico de épocas não encontrado — retreine para gerar as curvas.")
@@ -134,7 +149,7 @@ def plotar(model_name: str) -> None:
         plt.tight_layout()
         caminho = out_dir / "grafico_roc.png"
         plt.savefig(caminho, dpi=150, bbox_inches="tight")
-        plt.show()
+        plt.close()
         print(f"Salvo: {caminho}")
     else:
         print("Curva ROC não gerada: apenas uma classe presente.")
