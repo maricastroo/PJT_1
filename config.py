@@ -14,16 +14,13 @@ class Config:
 
     # ∘₊✧──✧₊∘ Treinamento ∘₊✧──────✧₊∘
     num_epochs: int = 50
-    batch_size: int = 64 
-    lr_head: float = 1e-4
-    lr_backbone:  float = 5e-5
-    weight_decay: float = 1e-3
-    num_workers: int = 2  # 0 para estabilidade no Windows
+    batch_size: int = 64
+    lr_head: float = 1e-4       
+    lr_backbone: float = 5e-5
+    weight_decay: float = 1e-3  
+    num_workers: int = 4       
     max_patches_por_paciente: int = 0
     patience: int = 10
-
-    # ∘₊✧──✧₊∘ VGG-16 ∘₊✧──────✧₊∘
-    vgg_use_gap: bool = False  # True = GAP(1×1) + ~132K params | False = Linear(25088) + ~13M params
 
     # ∘₊✧──✧₊∘ Protocolo K-Fold (70-15-15) ∘₊✧──────✧₊∘
     k_folds: int = 5
