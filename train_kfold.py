@@ -43,24 +43,24 @@ def logo_split(paths: np.ndarray, labels: np.ndarray, patient_ids: np.ndarray,
     rng.shuffle(unique_patients)
 
     n = len(unique_patients)
-    n_test  = max(1, round(n * test_ratio))
-    n_val   = max(1, round(n * val_ratio))
+    n_test = max(1, round(n * test_ratio))
+    n_val = max(1, round(n * val_ratio))
     # O restante vai para treino
     n_train = n - n_test - n_val
 
-    patients_test  = set(unique_patients[:n_test])
-    patients_val   = set(unique_patients[n_test:n_test + n_val])
+    patients_test = set(unique_patients[:n_test])
+    patients_val = set(unique_patients[n_test:n_test + n_val])
     patients_train = set(unique_patients[n_test + n_val:])
 
     train_mask = np.array([pid in patients_train for pid in patient_ids])
-    val_mask   = np.array([pid in patients_val   for pid in patient_ids])
-    test_mask  = np.array([pid in patients_test  for pid in patient_ids])
+    val_mask = np.array([pid in patients_val for pid in patient_ids])
+    test_mask = np.array([pid in patients_test  for pid in patient_ids])
 
     return train_mask, val_mask, test_mask, {
         "n_patients_train": n_train,
-        "n_patients_val":   n_val,
-        "n_patients_test":  n_test,
-        "patients_test":    sorted(patients_test),
+        "n_patients_val": n_val,
+        "n_patients_test": n_test,
+        "patients_test": sorted(patients_test),
     }
 
 
@@ -148,14 +148,17 @@ def run_kfold(cfg: Config, model_name: str):
         train_mask, val_mask, test_mask, split_info = logo_split(
             paths, labels, patient_ids, seed=current_seed
         )
+        train_idx = np.where(train_mask)[0]
+        val_idx = np.where(val_mask)[0]
+        test_idx = np.where(test_mask)[0]
 
-        X_train, y_train = paths[train_mask],  labels[train_mask]
-        X_val,   y_val   = paths[val_mask],    labels[val_mask]
-        X_test,  y_test  = paths[test_mask],   labels[test_mask]
+        X_train, y_train = paths[train_idx], labels[train_idx]
+        X_val, y_val   = paths[val_idx], labels[val_idx]
+        X_test, y_test  = paths[test_idx], labels[test_idx]
 
         # limita patches por paciente no treino para reduzir overfitting
         if cfg.max_patches_por_paciente > 0:
-            pids_train = patient_ids[train_mask]
+            pids_train = patient_ids[train_idx]
             rng = np.random.default_rng(current_seed)
             idx_selecionados = []
             for pid in np.unique(pids_train):
@@ -173,7 +176,7 @@ def run_kfold(cfg: Config, model_name: str):
               f"Val: {len(X_val)} | Teste: {len(X_test)}")
         
         # Transforms específicos por modelo
-        tf_train = get_transforms(train=True,  model_name=model_name)
+        tf_train = get_transforms(train=True, model_name=model_name)
         tf_test  = get_transforms(train=False, model_name=model_name)
 
         train_loader = DataLoader(
@@ -209,18 +212,18 @@ def run_kfold(cfg: Config, model_name: str):
 
         for epoch in range(1, cfg.num_epochs + 1):
             t0 = time.time()
-            tr_loss, tr_acc, _, _   = run_epoch(model, train_loader, criterion, optimizer, device,
+            tr_loss, tr_acc, _, _ = run_epoch(model, train_loader, criterion, optimizer, device,
                                                  desc=f"Ep {epoch:02d} Treino")
             val_loss, val_acc, _, _ = run_epoch(model, val_loader,   criterion, device=device,
                                                  desc=f"Ep {epoch:02d} Validação")
             scheduler.step(val_loss)
 
             historico.append({
-                "epoca":    epoch,
-                "tr_loss":  round(tr_loss,  4),
-                "tr_acc":   round(tr_acc,   4),
+                "epoca": epoch,
+                "tr_loss": round(tr_loss,  4),
+                "tr_acc": round(tr_acc,   4),
                 "val_loss": round(val_loss, 4),
-                "val_acc":  round(val_acc,  4),
+                "val_acc": round(val_acc,  4),
             })
 
             if val_loss < best_loss:
@@ -231,9 +234,9 @@ def run_kfold(cfg: Config, model_name: str):
                 mark = ""
 
             print(
-                f"  ep {epoch:02d}/{cfg.num_epochs} | "
-                f"treino  loss={tr_loss:.4f}  acc={tr_acc:.4f} | "
-                f"val  loss={val_loss:.4f}  acc={val_acc:.4f} | "
+                f"ep {epoch:02d}/{cfg.num_epochs} | "
+                f"treino loss={tr_loss:.4f}  acc={tr_acc:.4f} | "
+                f"val loss={val_loss:.4f}  acc={val_acc:.4f} | "
                 f"{time.time()-t0:.1f}s {mark}"
             )
             if no_improve >= cfg.patience:
@@ -248,20 +251,20 @@ def run_kfold(cfg: Config, model_name: str):
         print(f"Acurácia de Teste (Rodada {fold+1}): {test_acc:.4f}")
 
         resultados_folds.append({
-            "fold":             fold + 1,
-            "seed":             current_seed,
-            "protocolo":        "LOGO-70-15-15",
+            "fold": fold + 1,
+            "seed": current_seed,
+            "protocolo": "LOGO-70-15-15",
             "n_patients_train": split_info["n_patients_train"],
-            "n_patients_val":   split_info["n_patients_val"],
-            "n_patients_test":  split_info["n_patients_test"],
-            "patients_test":    split_info["patients_test"],
-            "n_patches_train":  int(len(X_train)),
-            "n_patches_val":    int(len(X_val)),
-            "n_patches_test":   int(len(X_test)),
-            "test_acc":         test_acc,
-            "y_true":           y_true,
-            "y_prob":           y_prob,
-            "historico":        historico,
+            "n_patients_val": split_info["n_patients_val"],
+            "n_patients_test": split_info["n_patients_test"],
+            "patients_test": split_info["patients_test"],
+            "n_patches_train": int(len(X_train)),
+            "n_patches_val": int(len(X_val)),
+            "n_patches_test": int(len(X_test)),
+            "test_acc": test_acc,
+            "y_true": y_true,
+            "y_prob": y_prob,
+            "historico": historico,
         })
 
         del model, optimizer, train_loader, val_loader, test_loader

@@ -24,13 +24,13 @@ def get_transforms(train: bool, model_name: str) -> transforms.Compose:
             transforms.RandomCrop(crop_size),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(90), #antes era 15 graus, mas aumentei para 90 para mais diversidade e para o treino nao acostumar rapido
+            transforms.RandomRotation(90), # antes era 15 graus, mas aumentei para 90 para mais diversidade e para o treino nao acostumar rapido
             transforms.RandomGrayscale(p=0.1),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
             transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
             transforms.ToTensor(),
-            transforms.Normalize(_MEAN, _STD),
-            transforms.RandomErasing(p=0.2),  #cobre regiões aleatórias
+            transforms.Normalize(_MEAN, _STD), # normalização de cores 
+            transforms.RandomErasing(p=0.2),  # cobre regiões aleatórias
         ])
     return transforms.Compose([
         transforms.Resize(resize_size, interpolation=transforms.InterpolationMode.BICUBIC),

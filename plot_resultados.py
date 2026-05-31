@@ -1,9 +1,10 @@
 """
-Lê o results.json gerado pelo train_kfold.py e plota os gráficos.
+Lê o results.json gerado pelo train_kfold.py ou ensemble.py e plota os gráficos.
 Uso:
     python plot_resultados.py --model resnet
     python plot_resultados.py --model efficientnet
     python plot_resultados.py --model vgg
+    python plot_resultados.py --model ensemble
 """
 
 import argparse
@@ -37,7 +38,9 @@ def plotar(model_name: str) -> None:
 
     all_y_pred = [1 if p >= 0.5 else 0 for p in all_y_prob]
 
-    accs = [r["test_acc"] for r in folds]
+    # ensemble usa "acc", modelos individuais usam "test_acc"
+    chave_acc = "acc" if model_name == "ensemble" else "test_acc"
+    accs = [r[chave_acc] for r in folds]
     auc_global = roc_auc_score(all_y_true, all_y_prob) if len(set(all_y_true)) > 1 else None
     auc_str = f"{auc_global:.4f}" if auc_global is not None else "N/A"
     cm_total = confusion_matrix(all_y_true, all_y_pred)

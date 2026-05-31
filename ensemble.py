@@ -121,6 +121,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfg = Config()
-    if args.output_dir:            cfg.output_dir  = args.output_dir
+    if args.output_dir: cfg.output_dir  = args.output_dir
     
     rodar_ensemble(cfg)
