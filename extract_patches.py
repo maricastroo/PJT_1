@@ -9,6 +9,7 @@ Uso:
 
 import argparse
 import cv2
+import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 
@@ -48,7 +49,9 @@ def extrair_patches(cfg: Config) -> None:
     ignoradas = 0
 
     for img_path in tqdm(imagens, desc="Extraindo patches"):
-        img = cv2.imread(str(img_path))
+        # Solução para paths com acentos no Windows
+        img_data = np.fromfile(img_path, np.uint8)
+        img = cv2.imdecode(img_data, cv2.IMREAD_COLOR)
         if img is None:
             ignoradas += 1
             continue
@@ -67,7 +70,8 @@ def extrair_patches(cfg: Config) -> None:
         for y in range(0, h - cfg.patch_size + 1, cfg.stride):
             for x in range(0, w - cfg.patch_size + 1, cfg.stride):
                 patch = img[y : y + cfg.patch_size, x : x + cfg.patch_size]
-                cv2.imwrite(str(dest / f"{stem}_p{k}.png"), patch)
+                patch_path = dest / f"{stem}_p{k}.png"
+                cv2.imwrite(str(patch_path), patch)
                 k += 1
         total_patches += k
 
